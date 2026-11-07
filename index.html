@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Chef AI Cookbook</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f7f7f7;
+      min-height: 100vh;
+    }
+    #recipe-output::-webkit-scrollbar {
+      width: 8px;
+    }
+    #recipe-output::-webkit-scrollbar-track {
+      background: #f0fdf4;
+      border-radius: 10px;
+    }
+    #recipe-output::-webkit-scrollbar-thumb {
+      background: #15803d;
+      border-radius: 10px;
+    }
+    #recipe-output::-webkit-scrollbar-thumb:hover {
+      background: #16a34a;
+    }
+  </style>
+</head>
+<body class="p-4 flex flex-col items-center justify-center">
+
+  <div class="w-full max-w-2xl bg-white shadow-2xl rounded-xl p-6 md:p-10 my-8">
+    
+    <header class="text-center mb-8">
+      <div class="text-4xl font-extrabold text-green-700 tracking-tight">
+        Student Chef 🧑‍🍳
+      </div>
+      <p class="mt-2 text-gray-600">
+        Unlock dinner potential! Enter your ingredients and let AI suggest a simple, delicious meal.
+      </p>
+    </header>
+
+    <div class="space-y-4">
+      <label for="ingredients" class="block text-lg font-medium text-gray-700">
+        What ingredients do you have? (e.g., pasta, tomato, onion, cheese)
+      </label>
+      <textarea
+        id="ingredients"
+        rows="3"
+        placeholder="List your ingredients here, separated by commas (e.g., eggs, milk, flour, sugar)."
+        class="w-full p-4 border-2 border-green-300 rounded-lg focus:ring-green-500 focus:border-green-500 transition duration-150 ease-in-out text-gray-800 shadow-inner"
+      ></textarea>
+
+      <button
+        id="generate-button"
+        class="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+      >
+        <span id="button-text">Find Recipe!</span>
+        <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="result-container" class="mt-10 pt-6 border-t border-gray-200 hidden">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+        </svg>
+        Your Recipe Idea
+      </h2>
+      <div id="recipe-output" class="bg-green-50 p-6 rounded-lg shadow-inner text-gray-800 max-h-96 overflow-y-auto"></div>
+    </div>
+    
+    <div id="message-box" class="mt-4 p-3 rounded-lg text-sm text-red-700 bg-red-100 border border-red-300 hidden"></div>
+  </div>
+
+  <script>
+    function markdownToHtml(markdownText) {
+      let html = markdownText
+        .replace(/^#\s*(.*)$/gm, '<h3 class="text-xl font-bold mb-2">$1</h3>')
+        .replace(/^##\s*(.*)$/gm, '<h4 class="text-lg font-semibold mb-2">$2</h4>')
+        .replace(/^\*\s+(.*)$/gm, '<li>$1</li>')
+        .replace(/^\-\s+(.*)$/gm, '<li>$1</li>')
+        .replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>')
+        .replace(/\n{2,}/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      return `<p>${html}</p>`;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const ingredientsInput = document.getElementById("ingredients");
+      const generateButton = document.getElementById("generate-button");
+      const buttonText = document.getElementById("button-text");
+      const loadingSpinner = document.getElementById("loading-spinner");
+      const resultContainer = document.getElementById("result-container");
+      const recipeOutput = document.getElementById("recipe-output");
+      const messageBox = document.getElementById("message-box");
+
+      generateButton.addEventListener("click", async () => {
+        const ingredients = ingredientsInput.value.trim();
+        if (!ingredients) {
+          messageBox.textContent = "Please enter some ingredients.";
+          messageBox.classList.remove("hidden");
+          return;
+        }
+
+        messageBox.classList.add("hidden");
+        buttonText.textContent = "Generating...";
+        loadingSpinner.classList.remove("hidden");
+        generateButton.disabled = true;
+
+        try {
+          // Calls your secure backend serverless function instead of OpenAI directly
+          const response = await fetch("/api/recipe", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ ingredients })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || `Server error: ${response.status}`);
+          }
+
+          const markdown = data?.choices?.[0]?.message?.content;
+
+          if (markdown) {
+            recipeOutput.innerHTML = markdownToHtml(markdown);
+            resultContainer.classList.remove("hidden");
+          } else {
+            messageBox.textContent = "No content was generated.";
+            messageBox.classList.remove("hidden");
+          }
+        } catch (error) {
+          console.error("Fetch Error:", error);
+          messageBox.textContent = `Failed to fetch recipe: ${error.message}`;
+          messageBox.classList.remove("hidden");
+        } finally {
+          buttonText.textContent = "Find Recipe!";
+          loadingSpinner.classList.add("hidden");
+          generateButton.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
