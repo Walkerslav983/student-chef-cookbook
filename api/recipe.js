@@ -9,32 +9,53 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Ingredients are required' });
   }
 
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server' });
+  }
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}` // Safe on the server!
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: `Suggest a simple, tasty recipe using: ${ingredients}. Keep it beginner-friendly.`
-          }
-        ]
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Create a simple, delicious student recipe using these ingredients: ${ingredients}. Give it a title, ingredients list, and clear step-by-step instructions.`
+                }
+              ]
+            }
+          ]
+        })
+      }
+    );
 
     const data = await response.json();
-    
+
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'OpenAI error' });
+      throw new Error(data.error?.message || 'Failed to fetch from Gemini API');
     }
 
-    return res.status(200).json(data);
+    // Map Gemini's response structure to match what index.html expects
+    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    res.status(200).json({
+      choices: [
+        {
+          message: {
+            content: candidateText
+          }
+        }
+      ]
+    });
   } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('API Error:', error);
+    res.status(500).json({ error: error.message });
   }
 }
