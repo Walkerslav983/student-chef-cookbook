@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -42,7 +42,6 @@ export default async function handler(req, res) {
       throw new Error(data.error?.message || 'Failed to fetch from Gemini API');
     }
 
-    // Map Gemini's response structure to match what index.html expects
     const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     res.status(200).json({
